@@ -88,7 +88,8 @@ public enum CodeEnum {
      * 没有权限
      */
     NOT_AUTHORITY(403, "没有操作权限！"),
-    USERNAME_EXIST(229, "该用户名已存在！");
+    USERNAME_EXIST(229, "该用户名已存在！"),
+    UNSUPPORT_TYPE(295,"不支持该类型！");
 
     private final int code;
     private final String msg;

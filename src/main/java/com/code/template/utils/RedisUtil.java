@@ -1,7 +1,10 @@
 package com.code.template.utils;
 
 
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSON;
+import com.code.template.constants.CodeEnum;
 import com.code.template.constants.RedisConstants;
 import com.code.template.exception.CustomException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -10,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.lang.reflect.Array;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -92,18 +96,18 @@ public class RedisUtil {
      * @return {@link String}
      */
     public String getString(String key){
-        return redisTemplate.opsForValue().get(key) == null ? null : JSON.toJSONString(redisTemplate.opsForValue().get(key));
+        return redisTemplate.opsForValue().get(key) == null ? null : JSONUtil.toJsonStr(redisTemplate.opsForValue().get(key));
     }
 
     /**
-     * 获取
+     * 按类型获取值
      *
      * @param key  键
      * @param type 类型
      * @return {@link E}
      */
     public <E> E get(String key,Class<E> type){
-        String json = redisTemplate.opsForValue().get(key).toString();
+        String json = JSONUtil.toJsonStr(redisTemplate.opsForValue().get(key));
         E value = getValue(type,json);
         return value;
     }
@@ -115,14 +119,48 @@ public class RedisUtil {
      * @param json json格式
      * @return {@link E}
      */
-    public <E> E getValue(Class<E> type,String json){
-        E value;
-        try {
-            value = objectMapper.readValue(json, type);
-        } catch (JsonProcessingException e) {
-            throw new CustomException(e);
+    public static <E> E getValue(Class<E> type, String json) {
+        if (type == String.class) {
+            // 对于字符串，直接返回 JSON 字符串
+            return (E) json;
+        } else if (type == Integer.class) {
+            // 对于整数，使用 parseInteger 方法
+            return (E) Integer.valueOf(JSONUtil.parseObj(json).getInt("value"));
+        } else if (type == Long.class) {
+            // 对于长整数，使用 parseLong 方法
+            return (E) Long.valueOf(JSONUtil.parseObj(json).getLong("value"));
+        } else if (type == Double.class) {
+            // 对于双精度浮点数，使用 parseDouble 方法
+            return (E) Double.valueOf(JSONUtil.parseObj(json).getDouble("value"));
+        } else if (type == Float.class) {
+            // 对于浮点数，使用 parseFloat 方法
+            return (E) Float.valueOf(JSONUtil.parseObj(json).getFloat("value"));
+        } else if (type == Boolean.class) {
+            // 对于布尔值，使用 parseBoolean 方法
+            return (E) Boolean.valueOf(JSONUtil.parseObj(json).getBool("value"));
+        } else if (type == Character.class) {
+            // 对于字符，使用字符串的第一个字符
+            String strValue = JSONUtil.parseObj(json).getStr("value");
+            if (strValue != null && strValue.length() > 0) {
+                return (E) Character.valueOf(strValue.charAt(0));
+            }
+        } else if (type == Byte.class) {
+            // 对于字节，使用 parseByte 方法
+            return (E) Byte.valueOf(JSONUtil.parseObj(json).getByte("value"));
+        } else if (type.isArray()) {
+            // 对于数组，使用 parseArray 方法
+            Class<?> componentType = type.getComponentType();
+            JSONArray jsonArray = JSONUtil.parseArray(json);
+            Object array = Array.newInstance(componentType, jsonArray.size());
+            for (int i = 0; i < jsonArray.size(); i++) {
+                Array.set(array, i, getValue(componentType, jsonArray.getStr(i)));
+            }
+            return (E) array;
+        } else {
+            // 对于其他对象类型，使用 toBean 方法
+            return JSONUtil.toBean(json, type);
         }
-        return value;
+        throw new CustomException(CodeEnum.UNSUPPORT_TYPE);
     }
 
     /**
