@@ -95,7 +95,7 @@ knife4j:
     language: zh_cn
 logging:
   level:
-    com.code.orientation: debug
+    com.code.template: debug
 
 aliyun:
   oss:
